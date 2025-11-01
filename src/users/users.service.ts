@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -27,7 +27,7 @@ export class UsersService {
         name: createUserDto.name,
         email: createUserDto.email,
         password: hashedPassword,
-        role: createUserDto.role || 'user',
+        role: createUserDto.role || 'client',
       },
     });
 
@@ -119,7 +119,7 @@ export class UsersService {
     return updatedUser;
   }
 
-  async remove(id: string) {
+  async remove(id: string, currentUserId: string) {
     // Verificar si el usuario existe
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -129,10 +129,59 @@ export class UsersService {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
 
+    // Un administrador no puede eliminarse a sí mismo
+    if (id === currentUserId) {
+      throw new ForbiddenException('No puedes eliminarte a ti mismo');
+    }
+
     await this.prisma.user.delete({
       where: { id },
     });
 
     return { message: `Usuario con ID ${id} eliminado exitosamente` };
+  }
+
+  /**
+   * Actualiza el rol de un usuario
+   * Solo puede ser llamado por un administrador
+   */
+  async updateRole(id: string, newRole: 'admin' | 'client', currentUserId: string) {
+    // Verificar que el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    }
+
+    // Validar que el rol sea válido
+    if (newRole !== 'admin' && newRole !== 'client') {
+      throw new BadRequestException('El rol debe ser "admin" o "client"');
+    }
+
+    // Un usuario no puede cambiar su propio rol
+    if (id === currentUserId) {
+      throw new ForbiddenException('No puedes cambiar tu propio rol');
+    }
+
+    // Actualizar el rol
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { role: newRole },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      message: `Rol del usuario actualizado a "${newRole}"`,
+      user: updatedUser,
+    };
   }
 }

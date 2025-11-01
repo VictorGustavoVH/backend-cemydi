@@ -34,15 +34,20 @@ export class ResendService {
       throw error;
     }
 
-    // En producción, usar onboarding@resend.dev si no hay EMAIL_FROM configurado
-    // o si el dominio no está verificado
+    // Determinar el email remitente
     let emailFrom = process.env.EMAIL_FROM;
     
+    // Si no hay EMAIL_FROM configurado, usar dominio seguro
     if (!emailFrom) {
-      emailFrom = process.env.NODE_ENV === 'production' 
-        ? 'Ortopedia CEMYDI <onboarding@resend.dev>'
-        : 'Ortopedia CEMYDI <no-reply@cemydi.com>';
+      emailFrom = 'Ortopedia CEMYDI <onboarding@resend.dev>';
       this.logger.warn(`⚠️ EMAIL_FROM no configurado, usando: ${emailFrom}`);
+    } else {
+      // Si EMAIL_FROM contiene un dominio no verificado (como cemydi.com), 
+      // usar automáticamente onboarding@resend.dev en producción
+      if (process.env.NODE_ENV === 'production' && emailFrom.includes('cemydi.com')) {
+        this.logger.warn(`⚠️ Dominio cemydi.com detectado en EMAIL_FROM. Usando dominio seguro onboarding@resend.dev`);
+        emailFrom = 'Ortopedia CEMYDI <onboarding@resend.dev>';
+      }
     }
     
     const subject = 'Código de recuperación de contraseña';
@@ -181,12 +186,38 @@ export class ResendService {
         this.logger.error(`   Stack: ${error.stack}`);
       }
       
+      // Si el error es por dominio no verificado, intentar automáticamente con onboarding@resend.dev
+      if (error.message?.includes('domain') || error.message?.includes('not verified') || 
+          error.message?.includes('Invalid from address') || error.data?.message?.includes('domain')) {
+        this.logger.warn(`⚠️ Error de dominio detectado. Reintentando con onboarding@resend.dev`);
+        
+        try {
+          const safeEmailFrom = 'Ortopedia CEMYDI <onboarding@resend.dev>';
+          this.logger.log(`📧 Reintentando envío desde: ${safeEmailFrom}`);
+          
+          const retryResponse = await this.resend.emails.send({
+            from: safeEmailFrom,
+            to: email,
+            subject,
+            html,
+          });
+          
+          this.logger.log(`✅ Correo de recuperación enviado a ${email} (usando dominio seguro)`);
+          this.logger.log(`   MessageId: ${retryResponse.data?.id || 'N/A'}`);
+          this.logger.log(`   Código OTP: ${otp}`);
+          return; // Éxito, salir sin lanzar error
+        } catch (retryError: any) {
+          this.logger.error(`❌ Error también al reintentar: ${retryError.message}`);
+          // Continuar con el error original
+        }
+      }
+      
       // Proporcionar mensaje más específico
       let errorMessage = 'No se pudo enviar el correo de recuperación';
       if (error.message?.includes('Invalid API key') || error.message?.includes('401')) {
         errorMessage = 'API Key de Resend inválida. Verifica RESEND_API_KEY en las variables de entorno.';
-      } else if (error.message?.includes('domain') || error.message?.includes('from')) {
-        errorMessage = `Dominio de EMAIL_FROM no verificado. Usa un dominio verificado en Resend o 'onboarding@resend.dev' para pruebas.`;
+      } else if (error.message?.includes('domain') || error.message?.includes('from') || error.message?.includes('not verified')) {
+        errorMessage = `Dominio de EMAIL_FROM no verificado. Configura EMAIL_FROM="Ortopedia CEMYDI <onboarding@resend.dev>" en Vercel.`;
       } else if (error.message) {
         errorMessage = `Error de Resend: ${error.message}`;
       }
@@ -207,7 +238,15 @@ export class ResendService {
       throw new Error('Este endpoint solo está disponible en desarrollo');
     }
 
-    const emailFrom = process.env.EMAIL_FROM || 'Ortopedia CEMYDI <no-reply@cemydi.com>';
+    // Usar onboarding@resend.dev por defecto para pruebas
+    let emailFrom = process.env.EMAIL_FROM;
+    if (!emailFrom) {
+      emailFrom = 'Ortopedia CEMYDI <onboarding@resend.dev>';
+    } else if (emailFrom.includes('cemydi.com')) {
+      // Si el dominio no está verificado, usar el seguro
+      emailFrom = 'Ortopedia CEMYDI <onboarding@resend.dev>';
+      this.logger.warn(`⚠️ Usando dominio seguro para correo de prueba`);
+    }
     const subject = 'Correo de prueba - Ortopedia CEMYDI';
 
     const html = `

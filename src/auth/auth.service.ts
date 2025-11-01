@@ -25,7 +25,7 @@ export class AuthService {
       name: registerDto.name,
       email: registerDto.email,
       password: registerDto.password,
-      role: 'user',
+      role: 'client',
     });
 
     // Generar token JWT
