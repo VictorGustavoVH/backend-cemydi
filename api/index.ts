@@ -8,7 +8,7 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from '../src/common/filters/http-exception.filter';
-import * as express from 'express';
+import express from 'express';
 
 // Cache de la aplicación para reutilizar entre invocaciones
 let cachedApp: any = null;
