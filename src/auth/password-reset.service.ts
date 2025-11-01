@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../common/services/email.service';
+import { ResendService } from '../common/services/resend.service';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 
@@ -17,7 +17,7 @@ export class PasswordResetService {
 
   constructor(
     private prisma: PrismaService,
-    private emailService: EmailService,
+    private resendService: ResendService,
     private usersService: UsersService,
   ) {}
 
@@ -73,9 +73,9 @@ export class PasswordResetService {
       });
     }
 
-    // Enviar correo con el código
+    // Enviar correo con el código usando Resend
     try {
-      await this.emailService.sendPasswordResetCode(email, code);
+      await this.resendService.sendRecoveryEmail(email, code);
       this.logger.log(`✅ Código de recuperación enviado a ${email}`);
       
       // También mostrar el código en consola para debugging (solo en desarrollo)
@@ -83,26 +83,19 @@ export class PasswordResetService {
         this.logger.log(`🔑 Código OTP generado: ${code} (expira en ${this.CODE_EXPIRATION_MINUTES} minutos)`);
         this.logger.log(`💡 Si no recibes el correo, usa este código para continuar`);
       }
-    } catch (error) {
-      // En modo desarrollo, mostrar el código en la consola si falla el envío
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      if (isDevelopment) {
-        this.logger.warn(`⚠️  MODO DESARROLLO: No se pudo enviar correo a ${email}`);
-        this.logger.warn(`⚠️  Código de recuperación: ${code}`);
-        this.logger.warn(`⚠️  Configura EMAIL_HOST, EMAIL_PORT, EMAIL_USER y EMAIL_PASS en .env para enviar correos reales`);
-        // En desarrollo, no lanzamos error, solo logueamos
-        return;
-      } else {
-        // En producción, eliminar el código y lanzar error
-        await this.prisma.passwordReset.delete({
-          where: { email },
-        }).catch(() => {
-          // Ignorar errores al eliminar
-        });
-        throw new BadRequestException(
-          'No se pudo enviar el correo de recuperación. Intenta nuevamente.',
-        );
-      }
+    } catch (error: any) {
+      this.logger.error(`❌ Error al enviar correo de recuperación a ${email}: ${error.message}`);
+      
+      // En producción, eliminar el código y lanzar error
+      await this.prisma.passwordReset.delete({
+        where: { email },
+      }).catch(() => {
+        // Ignorar errores al eliminar
+      });
+      
+      throw new BadRequestException(
+        'No se pudo enviar el correo de recuperación. Verifica que RESEND_API_KEY esté configurada correctamente.',
+      );
     }
   }
 

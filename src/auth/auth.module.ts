@@ -9,7 +9,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PasswordResetService } from './password-reset.service';
 import { UsersModule } from '../users/users.module';
-import { EmailModule } from '../common/services/email.module';
+import { ResendModule } from '../common/services/resend.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
@@ -17,7 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
     UsersModule,
     PassportModule,
     ConfigModule,
-    EmailModule,
+    ResendModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {

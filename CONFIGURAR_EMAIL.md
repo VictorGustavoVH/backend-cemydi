@@ -125,9 +125,13 @@
 
 ## ✅ Verificación:
 
+⚠️ **NOTA**: Este proyecto ahora utiliza **Resend** en lugar de SMTP/Nodemailer. 
+
+Para configurar el envío de correos, consulta: [CONFIGURAR_RESEND.md](./CONFIGURAR_RESEND.md)
+
 Si está configurado correctamente, verás en la consola:
 ```
-[EmailService] Correo de recuperación enviado a usuario@email.com. MessageId: ...
+[ResendService] Correo de recuperación enviado a usuario@email.com. MessageId: ...
 ```
 
 Si hay errores, revisa:
