@@ -76,7 +76,7 @@ export class UsersService {
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto, currentUserId?: string) {
     // Verificar si el usuario existe
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -84,6 +84,14 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    }
+
+    // Si se intenta cambiar el rol en este endpoint, rechazar
+    // El rol solo se puede cambiar mediante PATCH /users/:id/role
+    if ((updateUserDto as any).role !== undefined) {
+      throw new BadRequestException(
+        'Para cambiar el rol de un usuario, utiliza el endpoint PATCH /users/:id/role',
+      );
     }
 
     // Si se está actualizando el email, verificar que no esté en uso
@@ -99,6 +107,9 @@ export class UsersService {
 
     // Si se está actualizando la contraseña, cifrarla
     const updateData: any = { ...updateUserDto };
+    // Eliminar role si viene (no debería, pero por seguridad)
+    delete updateData.role;
+    
     if (updateUserDto.password) {
       updateData.password = await bcrypt.hash(updateUserDto.password, 10);
     }
@@ -116,7 +127,10 @@ export class UsersService {
       },
     });
 
-    return updatedUser;
+    return {
+      message: 'Usuario actualizado exitosamente',
+      user: updatedUser,
+    };
   }
 
   async remove(id: string, currentUserId: string) {
