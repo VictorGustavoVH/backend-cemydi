@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException, 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -195,6 +196,67 @@ export class UsersService {
 
     return {
       message: `Rol del usuario actualizado a "${newRole}"`,
+      user: updatedUser,
+    };
+  }
+
+  /**
+   * Actualiza el perfil del usuario autenticado
+   * Solo puede modificar name, email y password (no role)
+   */
+  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+    // Verificar que el usuario existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`);
+    }
+
+    // Si se está actualizando el email, verificar que no esté en uso por otro usuario
+    if (updateProfileDto.email && updateProfileDto.email !== user.email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: updateProfileDto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('El email ya está registrado');
+      }
+    }
+
+    // Preparar datos de actualización
+    const updateData: any = {};
+
+    if (updateProfileDto.name) {
+      updateData.name = updateProfileDto.name.trim();
+    }
+
+    if (updateProfileDto.email) {
+      updateData.email = updateProfileDto.email.trim();
+    }
+
+    // Si se proporciona una nueva contraseña, cifrarla
+    if (updateProfileDto.password) {
+      updateData.password = await bcrypt.hash(updateProfileDto.password, 10);
+    }
+
+    // Actualizar el usuario
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      message: 'Perfil actualizado correctamente.',
       user: updatedUser,
     };
   }
