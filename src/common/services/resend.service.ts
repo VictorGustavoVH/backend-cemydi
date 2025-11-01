@@ -145,7 +145,7 @@ export class ResendService {
       this.logger.log(`📧 Desde: ${emailFrom}`);
       this.logger.log(`📧 Código OTP: ${otp}`);
 
-      const data = await this.resend.emails.send({
+      const response = await this.resend.emails.send({
         from: emailFrom,
         to: email,
         subject,
@@ -153,7 +153,7 @@ export class ResendService {
       });
 
       this.logger.log(`✅ Correo de recuperación enviado a ${email}`);
-      this.logger.log(`   MessageId: ${data.id || 'N/A'}`);
+      this.logger.log(`   MessageId: ${response.data?.id || 'N/A'}`);
       this.logger.log(`   Código OTP: ${otp}`);
     } catch (error: any) {
       this.logger.error(`❌ Error al enviar correo a ${email}:`);
@@ -237,7 +237,7 @@ export class ResendService {
     `;
 
     try {
-      const data = await this.resend.emails.send({
+      const response = await this.resend.emails.send({
         from: emailFrom,
         to,
         subject,
@@ -245,7 +245,7 @@ export class ResendService {
       });
 
       this.logger.log(`✅ Correo de prueba enviado a ${to}`);
-      this.logger.log(`   MessageId: ${data.id || 'N/A'}`);
+      this.logger.log(`   MessageId: ${response.data?.id || 'N/A'}`);
     } catch (error: any) {
       this.logger.error(`❌ Error al enviar correo de prueba a ${to}:`);
       this.logger.error(`   Error: ${error.message}`);
