@@ -1,8 +1,12 @@
+import { config } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+
+// Cargar variables de entorno antes de que Prisma se inicialice
+config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

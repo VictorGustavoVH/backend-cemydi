@@ -1,4 +1,8 @@
+import { config } from "dotenv";
 import { defineConfig, env } from "prisma/config";
+
+// Cargar variables de entorno antes de que Prisma las lea
+config();
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
