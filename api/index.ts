@@ -3,12 +3,17 @@
  * Este archivo es el punto de entrada para Vercel
  */
 
+import { config } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from '../src/common/filters/http-exception.filter';
 import express from 'express';
+
+// Cargar variables de entorno antes de que Prisma se inicialice
+// En Vercel, las variables están disponibles pero dotenv las carga si existen en .env.local
+config();
 
 // Cache de la aplicación para reutilizar entre invocaciones
 let cachedApp: any = null;
@@ -19,48 +24,87 @@ async function bootstrap() {
     return cachedApp;
   }
 
-  // Crear instancia de Express
-  const expressApp = express();
-  
-  // Crear aplicación NestJS con Express adapter
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp));
-
-  // Configurar CORS - permitir todos los orígenes en producción (ajusta según necesites)
-  const allowedOrigins = process.env.FRONTEND_URL 
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-    : ['*'];
+  try {
+    console.log('🚀 Inicializando aplicación NestJS en Vercel...');
     
-  app.enableCors({
-    origin: allowedOrigins.length === 1 && allowedOrigins[0] === '*' ? '*' : allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+    // Verificar variables críticas
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL no está configurada. Verifica las variables de entorno en Vercel.');
+    }
+    
+    // Crear instancia de Express
+    const expressApp = express();
+    
+    // Crear aplicación NestJS con Express adapter
+    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
+      logger: process.env.NODE_ENV === 'production' 
+        ? ['error', 'warn'] 
+        : ['log', 'error', 'warn', 'debug', 'verbose'],
+    });
 
-  // Aplicar filtro global de excepciones
-  app.useGlobalFilters(new AllExceptionsFilter());
+    // Configurar CORS - permitir todos los orígenes en producción (ajusta según necesites)
+    const allowedOrigins = process.env.FRONTEND_URL 
+      ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+      : ['*'];
+      
+    app.enableCors({
+      origin: allowedOrigins.length === 1 && allowedOrigins[0] === '*' ? '*' : allowedOrigins,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    });
 
-  // Habilitar validaciones globales
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+    // Aplicar filtro global de excepciones
+    app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Inicializar la aplicación
-  await app.init();
+    // Habilitar validaciones globales
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
 
-  // Guardar en caché
-  cachedApp = expressApp;
+    // Inicializar la aplicación
+    await app.init();
+    
+    console.log('✅ Aplicación NestJS inicializada correctamente');
 
-  return expressApp;
+    // Guardar en caché
+    cachedApp = expressApp;
+
+    return expressApp;
+  } catch (error: any) {
+    console.error('❌ Error al inicializar aplicación:', error);
+    console.error('Stack:', error.stack);
+    // Limpiar caché en caso de error para intentar de nuevo en la próxima invocación
+    cachedApp = null;
+    throw error;
+  }
 }
 
 // Exportar el handler para Vercel
 export default async function handler(req: any, res: any) {
-  const app = await bootstrap();
-  return app(req, res);
+  try {
+    const app = await bootstrap();
+    return app(req, res);
+  } catch (error: any) {
+    console.error('❌ Error en handler de Vercel:', error);
+    console.error('Stack:', error.stack);
+    
+    // Verificar si DATABASE_URL está disponible
+    if (!process.env.DATABASE_URL) {
+      console.error('⚠️ DATABASE_URL no está disponible en las variables de entorno');
+    }
+    
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: process.env.NODE_ENV === 'production' 
+        ? 'An error occurred' 
+        : error.message,
+      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+    });
+  }
 }
 
