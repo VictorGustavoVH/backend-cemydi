@@ -60,14 +60,20 @@ JWT_EXPIRES_IN=1d
 NODE_ENV=production
 ```
 
-### Variables de Email (Brevo):
+### Variables de Email (Resend):
 ```env
-EMAIL_HOST=smtp-relay.brevo.com
-EMAIL_PORT=587
-EMAIL_USER=9a813b001@smtp-brevo.com
-EMAIL_PASS=xsmtpsib-adce5f8ebd0ddcd267f7da3e85de06e70840079518b56aaccb0c76fc5e2585f3-K2OIIuMJNMJCk0Cy
-EMAIL_FROM="Ortopedia CEMYDI <9a813b001@smtp-brevo.com>"
+# API Key de Resend (obligatoria)
+RESEND_API_KEY=re_4gCzcq6e_CKNNUpfkoWX5vv2Y8rwCRNyy
+
+# Email remitente
+# Opción 1: Dominio de prueba (recomendado para empezar)
+EMAIL_FROM="Ortopedia CEMYDI <onboarding@resend.dev>"
+
+# Opción 2: Si tienes dominio verificado en Resend
+EMAIL_FROM="Ortopedia CEMYDI <no-reply@cemydi.com>"
 ```
+
+📖 **Para más detalles sobre configuración de Resend, consulta:** [CONFIGURAR_RESEND_VERCEL.md](./CONFIGURAR_RESEND_VERCEL.md)
 
 ### Variables Opcionales:
 ```env

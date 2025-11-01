@@ -34,7 +34,17 @@ export class ResendService {
       throw error;
     }
 
-    const emailFrom = process.env.EMAIL_FROM || 'Ortopedia CEMYDI <no-reply@cemydi.com>';
+    // En producción, usar onboarding@resend.dev si no hay EMAIL_FROM configurado
+    // o si el dominio no está verificado
+    let emailFrom = process.env.EMAIL_FROM;
+    
+    if (!emailFrom) {
+      emailFrom = process.env.NODE_ENV === 'production' 
+        ? 'Ortopedia CEMYDI <onboarding@resend.dev>'
+        : 'Ortopedia CEMYDI <no-reply@cemydi.com>';
+      this.logger.warn(`⚠️ EMAIL_FROM no configurado, usando: ${emailFrom}`);
+    }
+    
     const subject = 'Código de recuperación de contraseña';
 
     const html = `
@@ -158,10 +168,30 @@ export class ResendService {
     } catch (error: any) {
       this.logger.error(`❌ Error al enviar correo a ${email}:`);
       this.logger.error(`   Error: ${error.message}`);
+      this.logger.error(`   Tipo: ${error.constructor.name}`);
+      
+      // Log detallado del error de Resend
       if (error.response) {
-        this.logger.error(`   Respuesta: ${JSON.stringify(error.response)}`);
+        this.logger.error(`   Respuesta HTTP: ${JSON.stringify(error.response)}`);
       }
-      throw new Error('No se pudo enviar el correo de recuperación');
+      if (error.data) {
+        this.logger.error(`   Datos del error: ${JSON.stringify(error.data)}`);
+      }
+      if (error.stack) {
+        this.logger.error(`   Stack: ${error.stack}`);
+      }
+      
+      // Proporcionar mensaje más específico
+      let errorMessage = 'No se pudo enviar el correo de recuperación';
+      if (error.message?.includes('Invalid API key') || error.message?.includes('401')) {
+        errorMessage = 'API Key de Resend inválida. Verifica RESEND_API_KEY en las variables de entorno.';
+      } else if (error.message?.includes('domain') || error.message?.includes('from')) {
+        errorMessage = `Dominio de EMAIL_FROM no verificado. Usa un dominio verificado en Resend o 'onboarding@resend.dev' para pruebas.`;
+      } else if (error.message) {
+        errorMessage = `Error de Resend: ${error.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
