@@ -8,7 +8,7 @@ import { HomeController } from './home/home.controller';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: process.env.NODE_ENV === 'production' ? undefined : '.env',
     }),
     UsersModule,
     AuthModule,
