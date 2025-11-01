@@ -42,13 +42,48 @@ async function bootstrap() {
         : ['log', 'error', 'warn', 'debug', 'verbose'],
     });
 
-    // Configurar CORS - permitir todos los orígenes en producción (ajusta según necesites)
-    const allowedOrigins = process.env.FRONTEND_URL 
-      ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-      : ['*'];
+    // Configurar CORS - permitir múltiples orígenes
+    const allowedOrigins: string[] = [];
+    
+    // Agregar origen de Netlify
+    allowedOrigins.push('https://modulousuarioproyecto.netlify.app');
+    
+    // Agregar orígenes desde variable de entorno si existe
+    if (process.env.FRONTEND_URL) {
+      const envOrigins = process.env.FRONTEND_URL.split(',').map(url => url.trim());
+      allowedOrigins.push(...envOrigins);
+    }
+    
+    // En desarrollo, permitir localhost
+    if (process.env.NODE_ENV !== 'production') {
+      allowedOrigins.push('http://localhost:3000');
+      allowedOrigins.push('http://localhost:3001');
+    }
+    
+    // Eliminar duplicados y vacíos
+    const uniqueOrigins = [...new Set(allowedOrigins.filter(Boolean))];
+    
+    console.log('🌐 Orígenes CORS permitidos:', uniqueOrigins);
       
     app.enableCors({
-      origin: allowedOrigins.length === 1 && allowedOrigins[0] === '*' ? '*' : allowedOrigins,
+      origin: (origin, callback) => {
+        // Permitir requests sin origin (mobile apps, Postman, etc.)
+        if (!origin) {
+          return callback(null, true);
+        }
+        
+        // Si no hay orígenes configurados, permitir todos (solo en desarrollo)
+        if (uniqueOrigins.length === 0 && process.env.NODE_ENV !== 'production') {
+          return callback(null, true);
+        }
+        
+        if (uniqueOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn('⚠️ Origen bloqueado por CORS:', origin);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],

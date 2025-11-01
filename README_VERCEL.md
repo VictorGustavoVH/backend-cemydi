@@ -72,8 +72,10 @@ EMAIL_FROM="Ortopedia CEMYDI <9a813b001@smtp-brevo.com>"
 ### Variables Opcionales:
 ```env
 PORT=4000
-FRONTEND_URL=https://tu-frontend.vercel.app
+FRONTEND_URL=https://tu-frontend.vercel.app,https://otro-dominio.com
 ```
+
+**Nota:** El dominio de Netlify (`https://modulousuarioproyecto.netlify.app`) ya está incluido por defecto en el código. Puedes agregar más dominios separándolos con comas en `FRONTEND_URL`.
 
 ## Paso 5: Ejecutar Migraciones
 
@@ -125,8 +127,9 @@ export const API_URL = "https://tu-backend.vercel.app";
 - Asegúrate de que la base de datos permita conexiones desde Vercel (whitelist de IPs)
 
 ### CORS Errors
-- Actualiza `FRONTEND_URL` en variables de entorno
-- Verifica que el origen esté permitido en CORS
+- El dominio de Netlify (`https://modulousuarioproyecto.netlify.app`) ya está incluido por defecto
+- Si tienes otro frontend, agrega su URL en `FRONTEND_URL` separando múltiples URLs con comas
+- Verifica que el origen esté permitido en CORS en los logs del backend
 
 ## Verificar el Despliegue
 
